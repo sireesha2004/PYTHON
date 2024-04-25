@@ -1,0 +1,493 @@
+*********PROGRAM(1)***********
+1.**( Implement and demonstrate the FIND-S algorithm to finding the most specific hypothesis based on a given set of data samples. Read the training data from a .CSV file. 
+)**
+#################################################
+import pandas as pd)
+data = pd.read_csv('enjoySport.csv')
+h = []
+for i in range(data.shape[0]):
+    if data.iloc[i, -1] == 'yes':
+        h = list (data.iloc[i, :-1])
+print(h)
+
+for i in range(data.shape[0]):
+    if data.iloc[i, -1] == 'yes':
+        for j in range(len(h)):
+            if h[j] != data.iloc[i, j]:
+                h[j] = '?'
+        print(h)
+####################################################
+
+**************PROGRAM(2)*************
+2.For a given set of training data examples stored in a .CSV file, implement and demonstrate the Candidate-Elimination algorithm to output a description of the set of all hypotheses consistent with the training examples)**
+######################################################
+import pandas as pd
+df = pd.read_csv('./enjoySport.csv')
+def specialize(s,i):
+    if s[0] == None:
+        s = list(df.iloc[0,:-1])
+        return s
+    if df.iloc[i,-1] == 'yes':
+        for j in range(len(s)):
+            if s[j] != df.iloc[i,j]:
+                s[j] = '?'
+    return s
+def generalize(s,gen,index):
+    print(s)
+    for i in range(len(s)):
+        if s[i] != df.iloc[index,i] and s[i] != '?':
+            g = ['?']*6
+            g[i] = s[i]
+            gen.append(g)
+    return gen
+s = [None]*6
+gen = []
+for i in range(len(df)):
+    if df.iloc[i,-1] == 'yes':
+        s = specialize(s,i)
+    else:
+        gen = generalize(s,gen,i)
+final_gen = []
+for i in gen:
+    for j,k in zip(range(len(i)),range(len(s))):
+        if i[j] != '?':
+            if s[k] == i[j]:
+                final_gen.append(i)
+print(final_gen)
+print(s)
+##############################################
+
+***************PROGRAM(3)****************
+3. Write a program to implement the naïve Bayesian classifier for a sample training data set stored as a .CSV file. Compute the accuracy of the classifier, considering few test data sets.
+####################################################
+####################################################
+
+
+***************PROGRAM(4)****************
+4. Assuming a set of documents that need to be classified, use the naïve Bayesian classifier model to perform this task. Built-in classes /API can be used to write the program. Calculate the accuracy precision and recall for your data set.
+####################################################
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+df = pd.read_csv('./text_classification.csv')
+X, Y = df['Text'], df['label']
+
+x_train, x_test, y_train, y_test = train_test_split(X, Y, shuffle=False)
+vocabulary = []
+for row in range(x_train.shape[0]):
+    vocabulary.extend(x_train.iloc[row].lower().split())
+vocabulary = sorted(list(set(vocabulary)))
+probPos = y_train[y_train=='pos'].count() / y_train.count()
+probNeg = y_train[y_train=='neg'].count() / y_train.count()
+textPos = []
+for t in x_train[y_train=='pos']:
+    textPos.extend(t.lower().split())
+textPos = sorted(textPos)
+nPos = len(set(textPos))
+textNeg = []
+for t in x_train[y_train=='neg']:
+    textNeg.extend(t.lower().split())
+textNeg = sorted(textNeg)
+nNeg = len(set(textNeg))
+wordProbs = {}
+for word in vocabulary:
+    positive = (textPos.count(word)+1) / (nPos + len(vocabulary))
+    negative = (textNeg.count(word)+1) / (nNeg + len(vocabulary))
+    wordProbs.update({word: [positive, negative]})
+estimate = []
+
+for row in range(x_test.shape[0]):
+    vPositive = probPos
+    vNegative = probNeg
+    for word in x_test.iloc[row].lower().split():
+        if word not in vocabulary:
+            continue
+        vPositive *= wordProbs[word][0]
+        vNegative *= wordProbs[word][1]
+    estimate.append('pos' if vPositive >= vNegative else 'neg')
+confusion_matrix = pd.DataFrame([[0, 0], [0, 0]], columns=['neg', 'pos'], index=['neg', 'pos'])
+
+for i in range(y_test.shape[0]):
+    confusion_matrix.loc[y_test.iloc[i], estimate[i]] += 1
+confusion_matrix
+tn, fp, fn, tp = confusion_matrix.loc['neg', 'neg'], confusion_matrix.loc['neg', 'pos'], \
+                confusion_matrix.loc['pos', 'neg'], confusion_matrix.loc['pos', 'pos']
+precision = tp / (tp + fp)
+recall = tn / (tp + fn)
+accuracy = (tp + tn) / (tp + tn + fp + fn)
+print("Precision: ", precision)
+print("Recall: ", recall)
+print("Accuracy: ", accuracy)
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn import metrics
+
+msg = pd.read_csv('./text_classification.csv')
+msg['lablenum'] = msg.label.map({'pos':1, 'neg':0})
+X = msg.Text
+Y = msg.lablenum
+
+x_train, x_test, y_train, y_test = train_test_split(X, Y)
+cv = CountVectorizer()
+xtrain_dtm = cv.fit_transform(x_train)
+xtest_dtm = cv.transform(x_test)
+print(cv.get_feature_names_out())
+data = pd.DataFrame(xtrain_dtm.toarray(), columns=cv.get_feature_names_out())
+clf = MultinomialNB().fit(xtrain_dtm, y_train)
+predicted = clf.predict(xtest_dtm)
+metrics.accuracy_score(y_test, predicted)
+metrics.confusion_matrix(y_test, predicted)
+metrics.precision_score(y_test, predicted)
+metrics.recall_score(y_test, predicted)
+
+####################################################
+
+
+***************PROGRAM(5)****************
+5.Write a program to construct a Bayesian network considering medical data. Use this model to demonstrate the diagnosis the of heart patients using standard heart disease data set. You can use Python ML Library classes /API.
+##################################################################################
+import numpy as np
+import pandas as pd
+import csv
+from pgmpy.estimators import MaximumLikelihoodEstimator
+from pgmpy.models import BayesianNetwork
+from pgmpy.inference import VariableElimination
+heartDisease = pd.read_csv('./heart.csv')
+heartDisease = heartDisease.replace('?', np.nan)
+print("Sample instances from dataset are given below:")
+print(heartDisease.head())
+print("Attributes and datatypes: ")
+print(heartDisease.dtypes)
+model = BayesianNetwork([('age', 'target'), ('sex', 'target'), ('exang', 'target'), ('cp', 'target'), ('target', 'restecg'), \
+                      ('target', 'chol')])
+model.fit(heartDisease, estimator=MaximumLikelihoodEstimator)
+print("Inferencing with Bayesian Network: ")
+HeartDisease_infer = VariableElimination(model)
+print('1. Probability of HeartDisease given evidence =restecg :1')
+q1 = HeartDisease_infer.query(variables=['target'], evidence={"restecg": 1})
+print(q1)
+
+print('\n2. Probability of HeartDisease given evidence = cp:2')
+q2 = HeartDisease_infer.query(variables=['target'], evidence={"cp": 2})
+print(q2)
+########################################################################################
+
+
+
+***************PROGRAM(6)****************
+6. Write a program to demonstrate the working of the decision tree based ID3 algorithm. Use an appropriate data set for building the decision tree and apply this knowledge to classify a new sample. 
+#########################################################
+import pandas as pd
+import numpy as np
+import math
+df = pd.read_csv('play_tennis.csv')
+df=df.drop("day",axis=1)
+df
+def entropy(s):
+    p = s.loc[s['play']=='Yes']
+    n = s.loc[s['play']=='No']
+    entropy = 0
+    if (p.shape[0] == 0 or n.shape[0] == 0):
+        return 0
+    entropy = -p.shape[0] / s.shape[0] * math.log2(p.shape[0]/s.shape[0]) - \
+                n.shape[0]/s.shape[0] * math.log2(n.shape[0]/s.shape[0])
+    return entropy
+def gain(s, a):
+    gain = entropy(s)
+    for value in s[a].unique():
+        gain -= (s[s[a]==value].shape[0] / s.shape[0]) * entropy(s[s[a]==value])
+    return gain
+attributes = set(df.columns[:-1])
+
+display(attributes)
+def id3(X, target, attrs):
+    tree = {}
+    targetCounts = X[target].value_counts()
+    
+    if X['play'].eq('Yes').all():
+        return 'Yes'
+    elif X['play'].eq('No').all():
+        return 'No'
+    elif len(attrs) == 0:
+        return 'Yes' if targetCounts['Yes'] > targetCounts['No'] else 'No'
+    else:
+        gains = [gain(X, a) for a in attrs]
+        best = attrs[gains.index(max(gains))]
+        tree = {best: {}}
+        attrs.remove(best)
+        for v in X[best].unique():
+            xv = X.loc[X[best]==v]
+            if len(xv) == 0:
+                tree[best].update({v: 'Yes' if targetCounts['Yes'] > targetCounts['No'] else 'No'})
+            tree[best].update({v: id3(xv, target, attrs)})
+    return tree
+data=df
+target = "play"
+att = list(df.columns[:-1])
+
+tree = id3(data,target,att)
+display(tree)
+print("bulid jarvis")
+##############################################################
+
+***************PROGRAM(7)****************
+7. Build an Artificial Neural Network by implementing the Backpropagation algorithm and test the same using appropriate data sets. 
+###############################################################
+import numpy as np
+import pandas as pd
+data = pd.read_csv('NN.csv')
+data
+def NerualNetworks(training,target,weights,layers,n=0.95):
+    for unit in weights:
+        print(unit,":",end=" ")
+        print(weights[unit])
+    print("*************************")
+    training  = training/ np.amax(training,axis=0)
+    target=target / 100
+    epochs = 5
+    for row in range(len(training)):
+        inputs,outputs,erros = [0]*5,[0]*5,[0]*5
+        inputs[0],inputs[1] = training[row][0] , training[row][1]
+        
+        print(f"Normalized INputs:{training[row]}")
+        print(f"Excepted Normalized Inputs:{target[row]}")
+        
+        for epoch in range(epochs):
+            for i in layers.get('input',[]):
+                outputs[i] = inputs[i]
+                
+            for j in layers.get('hidden',[]):
+                inputs[j] = sum([weights[i][j]*outputs[i] for i in layers['input']]) + bais[j]
+                outputs[j] = 1.0/(1+np.exp(-inputs[i]))
+                
+            for k in layers.get('output',[]):
+                inputs[k] = sum([weights[j][k]*outputs[j] for j in layers['hidden']]) + bais[k]
+                outputs[k] = 1.0/(1+np.exp(-inputs[k]))
+                erros[k] = outputs[k]*(1-outputs[k]) * (target[i] - outputs[k])
+            for i in layers.get("hidden",[]):
+                erros[i] = outputs[i]*(1-outputs[i])*sum([erros[j]*weights[i][j] for j in layers.get("ouput",[])])
+            for i in weights:
+                for j in weights[i]:
+                    dw = n*erros[j]*outputs[i]
+                    weights[i][j]+=dw
+            for i in layers["output"] + layers["hidden"]:
+                db = n* erros[i]
+                bais[i] += db
+        print(f"After epoch {epochs}")
+        print(f"output: {outputs[4]}")
+training = data[['x','y']].to_numpy()
+target = data['target'].to_numpy()
+layers ={'input':[0,1],'hidden':[2,3],'output':[4]}
+weights={}
+
+for i in layers.get('input',[]):
+    d={}
+    for j in layers.get('hidden',[]):
+        d[j] = np.random.uniform(-1,1)
+    weights[i] = d
+for i in layers.get('hidden',[]):
+    d={}
+    for j in layers.get('output',[]):
+        d[j] = np.random.uniform(-1,1)
+    weights[i] = d
+
+bais = np.random.uniform(low=-1,high=1,size=(5,))
+
+NerualNetworks(training,target,weights,layers, n = 0.95)
+###############################################################
+
+***************PROGRAM(8)****************
+8. Apply EM algorithm to cluster a set of data stored in a .CSV file. Use the same data set for clustering using K-Means algorithm. Compare the results of these two algorithms and comment on the quality of clustering. You can add  Python ML library classes/API in the program.
+#####################################################################
+from sklearn.cluster import KMeans
+from sklearn import preprocessing
+from sklearn.mixture import GaussianMixture
+from sklearn.datasets import load_iris
+import sklearn.metrics as sm
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+datas = datasets.load_iris()
+#display(data)
+X=pd.DataFrame(datas.data)
+X.columns=['Sepal_Length','Sepal_Width','Petal_Length','Petal_Width']
+y=pd.DataFrame(datas.target)
+y.columns=['Targets']
+display(X)
+# REAL PLOT for original values
+#sepal_Length
+plt.figure(figsize=(14,14))
+colormap=np.array(['red','lime','black'])
+#plt.subplot(1,3,1)
+plt.subplot(2,2,1)
+plt.scatter(X.Sepal_Length,X.Sepal_Width,c=colormap[y.Targets],s=40)
+plt.xlabel('Sepal Length')
+plt.ylabel('Sepal width')
+plt.title('Real')
+
+# REAL PLOT for original values
+#petal_Length
+plt.figure(figsize=(14,14))
+colormap=np.array(['red','lime','black'])
+#plt.subplot(1,3,1)
+plt.subplot(2,2,2)
+plt.scatter(X.Petal_Length,X.Petal_Width,c=colormap[y.Targets],s=40)
+plt.xlabel('Petal Length')
+plt.ylabel('Petal width')
+plt.title('Real')
+# K-PLOT
+#Sepal_legth for K_means
+#plt.subplot(1,3,2)
+plt.figure(figsize=(14,14))
+colormap=np.array(['red','blue','black'])
+plt.subplot(2,2,1)
+model=KMeans(n_clusters=3)
+model.fit(X)
+predY=np.choose(model.labels_,[0,1,2]).astype(np.int64)
+plt.scatter(X.Sepal_Length,X.Sepal_Width,c=colormap[predY],s=40)
+plt.xlabel('Sepal Length')
+plt.ylabel('Sepal width')
+plt.title('KMeans')
+
+# K-PLOT
+#plt.subplot(1,3,2)
+plt.figure(figsize=(14,14))
+colormap=np.array(['red','blue','black'])
+plt.subplot(2,2,2)
+model=KMeans(n_clusters=3)
+model.fit(X)
+predY=np.choose(model.labels_,[0,1,2]).astype(np.int64)
+plt.scatter(X.Petal_Length,X.Petal_Width,c=colormap[predY],s=40)
+plt.xlabel('Petal Length')
+plt.ylabel('Petal width')
+plt.title('KMeans')
+# GMM PLOT for Sepal_legth
+scaler=preprocessing.StandardScaler()
+scaler.fit(X)
+xsa=scaler.transform(X)
+xs=pd.DataFrame(xsa,columns=X.columns)
+gmm=GaussianMixture(n_components=3)
+gmm.fit(xs)
+
+plt.figure(figsize=(14,14))
+colormap=np.array(['red','green','black'])
+
+y_cluster_gmm=gmm.predict(xs)
+#plt.subplot(1,3,3)
+plt.subplot(2,2,1)
+plt.scatter(X.Sepal_Length,X.Sepal_Width,c=colormap[y_cluster_gmm],s=40)
+plt.xlabel('Sepal Length')
+plt.ylabel('Sepal width')
+plt.title('GMM Classification')
+
+# GMM PLOT for petal_length
+scaler=preprocessing.StandardScaler()
+scaler.fit(X)
+xsa=scaler.transform(X)
+xs=pd.DataFrame(xsa,columns=X.columns)
+gmm=GaussianMixture(n_components=3)
+gmm.fit(xs)
+
+plt.figure(figsize=(14,14))
+colormap=np.array(['red','green','black'])
+
+y_cluster_gmm=gmm.predict(xs)
+#plt.subplot(1,3,3)
+plt.subplot(2,2,1)
+plt.scatter(X.Petal_Length,X.Petal_Width,c=colormap[y_cluster_gmm],s=40)
+plt.xlabel('Petal Length')
+plt.ylabel('Petal width')
+plt.title('GMM Classification')
+###########################################################################
+
+
+***************PROGRAM(9)****************
+ 9. Write a program to implement k-Nearest Neighbor algorithm to classify the iris data set. Print both correct and wrong predictions. Python ML library classes can be used for this problem. 
+
+########################################################################
+from sklearn import datasets 
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    ConfusionMatrixDisplay,
+    f1_score,
+    classification_report
+)
+def KNNClassification():
+    data = datasets.load_iris()
+    correct=0
+    X_train, X_test, y_train, y_test = train_test_split(data["data"], data["target"], random_state=0)
+
+    knn = KNeighborsClassifier(n_neighbors=1)
+    knn.fit(X_train, y_train)
+
+    y_pred = knn.predict(X_test)
+
+    for i in range(len(X_test)):
+            x=X_test[i]
+            x_new=np.array([x])
+            prediction=knn.predict(x_new)
+            print("samples:",x_new,"target=",y_test[i],"predicited=",prediction)
+            
+            if(y_test[i] == y_pred[i]):correct+=1
+    accuracy = classification_report(y_test, y_pred)
+    print(accuracy)
+    print(f" {correct} correct predictions among the {y_test.shape[0]} predicitions")
+KNNClassification()
+########################################################################
+
+***************PROGRAM(10)****************
+10. Implement the non-parametric Locally Weighted Regression algorithm in order to fit data points. Select appropriate data set your experiment and draw graphs.
+
+##########################################################################
+from sklearn import datasets 
+import numpy as np
+from math import ceil
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    ConfusionMatrixDisplay,
+    f1_score,
+    classification_report
+)
+from matplotlib import pyplot as plt
+from scipy import linalg
+iris = datasets.load_iris()
+#display(iris)
+def lowess(x, y, f, iterations):
+    n = len(x)
+    r = int(ceil(f * n))
+    h = [np.sort(np.abs(x - x[i]))[r] for i in range(n)]
+    w = np.clip(np.abs((x[:, None] - x[None, :]) / h), 0.0, 1.0)
+    w = (1 - w ** 3) ** 3
+    yest = np.zeros(n)
+    Δ = np.ones(n)
+    for iteration in range(iterations):
+        for i in range(n):
+            weights = Δ * w[:, i]
+            b = np.array([np.sum(weights * y), np.sum(weights * y * x)])
+            A = np.array([[np.sum(weights), np.sum(weights * x)],[np.sum(weights * x), np.sum(weights * x * x)]])
+            beta = linalg.solve(A, b)
+            yest[i] = beta[0] + beta[1] * x[i]
+
+        residuals = y - yest
+        s = np.median(np.abs(residuals))
+        Δ = np.clip(residuals / (6.0 * s), -1, 1)
+        Δ = (1 - Δ ** 2) ** 2
+    return yest
+import math
+n = 100
+x = np.linspace(0, 2 * math.pi, n)
+y = np.sin(x) + 0.3 * np.random.randn(n)
+f = 0.25
+iterations = 3
+yest = lowess(x, y, f, iterations)
+plt.plot(x,y,"r.",color='blue')
+plt.plot(x,yest,"b-",color='red')
+###############################################
